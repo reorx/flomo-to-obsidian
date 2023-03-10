@@ -21,7 +21,8 @@ function runCommand(flomoExportedDir, outputDir, options) {
   // get turndown
   const turndown = initTurndown();
 
-  const imagePathNameMap = {}
+  const imageSrcNameMap = {}
+  const dateCountMap = {}
 
   // ensure dirs
   const imageDir = path.resolve(outputDir, options.imageDir)
@@ -36,10 +37,12 @@ function runCommand(flomoExportedDir, outputDir, options) {
   const $ = load(html, null, false)
   $('.memo').each((i, el) => {
     // get .time, .content, .files from el
-    const title = $(el).find('.time').text()
-    const sp = title.split(' ')
+    const datetime = $(el).find('.time').text()
+    const sp = datetime.split(' ')
     const date = sp[0]
+    const time = sp[1]
     const filename = date + '.md'
+    dateCountMap[date] = 1
 
     const contentHTML = $(el).find('.content').html()
     const contentMarkdown = turndown.turndown(contentHTML).trim()
@@ -49,14 +52,23 @@ function runCommand(flomoExportedDir, outputDir, options) {
       const src = $(img).attr('src')
       const name = imagePathToName(src, date)
       images.push(name)
-      imagePathNameMap[src] = name
+      imageSrcNameMap[src] = name
     })
 
-    createOrAppendNote(outputDir, filename, title, contentMarkdown, images)
+    createOrAppendNote(outputDir, filename, time, contentMarkdown, images)
   })
 
-  // rename images
+  // copy images
+  console.log('\nmove images:')
+  for (const [src, name] of Object.entries(imageSrcNameMap)) {
+    const srcPath = path.resolve(flomoExportedDir, src)
+    const destPath = path.resolve(imageDir, name)
+    // move image from src to dest
+    console.log(`${src} -> ${options.imageDir}/${name}`)
+    fs.copyFileSync(srcPath, destPath)
+  }
 
+  console.log(`\nDone! Total notes created: ${Object.keys(dateCountMap).length}; Total images moved: ${Object.keys(imageSrcNameMap).length}`)
 }
 
 function createOrAppendNote(outputDir, filename, title, contentMarkdown, images) {
